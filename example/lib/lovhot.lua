@@ -1,24 +1,42 @@
 #!/usr/bin/env love
 -- LOVHOT
--- 0.5
+-- 0.55
 -- Hot Swap System (love2d)
 -- lovhot.lua
--- 0.55
--- add video and readme
+
+-- MIT License
+-- Copyright (c) 2020 Alexander Veledzimovich veledz@gmail.com
+
+-- Permission is hereby granted, free of charge, to any person obtaining a
+-- copy of this software and associated documentation files (the "Software"),
+-- to deal in the Software without restriction, including without limitation
+-- the rights to use, copy, modify, merge, publish, distribute, sublicense,
+-- and/or sell copies of the Software, and to permit persons to whom the
+-- Software is furnished to do so, subject to the following conditions:
+
+-- The above copyright notice and this permission notice shall be included in
+-- all copies or substantial portions of the Software.
+
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+-- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+-- DEALINGS IN THE SOFTWARE.
 
 -- 0.6
--- initial errors
--- look for new file or update string command(unsafe)
--- add all events
+-- look for new file try with require lovhot
 
--- title
+-- title bug
+-- initial errors
 
 -- 0.7
 -- fennel?
 -- require get all locals
 -- reg pack (__index)
 
-if arg[1] then print('0.5 LOVHOT Hot Swap System (love2d)', arg[1]) end
+if arg[1] then print('0.55 LOVHOT Hot Swap System (love2d)', arg[1]) end
 
 -- lua<5.3
 local unpack = table.unpack or unpack
@@ -28,6 +46,7 @@ local WHITE = {1,1,1,1}
 local SYNTAXCLR = {0.1,1,0.1,1}
 local RUNCLR = {1,0.1,0.1,1}
 local TRACECLR = {0.9,1,0.1,1}
+local FN = function(...) end
 
 -- private functions
 local function ext(path)
@@ -80,13 +99,13 @@ local meta = {}
 local Hot = {swap=false, swaptime=0,
             root={}, rootfile='', exclude={}, command='',
             catch = {syntax=false}, trace="",
-            datatab = setmetatable({}, meta), datakeys={}}
+            datatab = setmetatable({}, meta)}
 
 local events = {
     'update', 'draw',
-    'keypressed', 'keyreleased',
-    'mousepressed', 'mousereleased',
-    'mousemoved', 'wheelmoved'
+    'keypressed', 'keyreleased', 'mousepressed', 'mousereleased',
+    'mousemoved', 'wheelmoved', 'focus', 'mousefocus',
+    'resize', 'textedited', 'textinput', 'filedropped', 'visible', 'quit'
 }
 
 function Hot.load(rootfile, ...)
@@ -109,7 +128,9 @@ function Hot.load(rootfile, ...)
 end
 
 function Hot.data(key)
+        print(Hot.datatab[key])
     Hot.datatab[key] = Hot.datatab[key] or {}
+
     return  Hot.datatab[key]
 end
 
@@ -126,7 +147,15 @@ end
 function Hot.callbacks()
     local default = {}
     for _,event in pairs(events) do
-        default[event] = love[event] or function() end
+
+        if event~='update' and event~='draw' then
+            Hot[event] = function(...)
+                Hot.root[event]=Hot.root[event] or FN
+                Hot.root[event](...)
+            end
+        end
+
+        default[event] = love[event] or FN
         love[event] = function(...)
             local output = {default[event](...)}
 
@@ -165,14 +194,6 @@ function Hot.draw()
     Hot.warning()
     Hot.root.draw()
 end
-
-function Hot.keypressed(...) Hot.root.keypressed(...) end
-function Hot.keyreleased(...) Hot.root.keyreleased(...) end
-function Hot.mousepressed(...) Hot.root.mousepressed(...) end
-function Hot.mousereleased(...) Hot.root.mousereleased(...) end
-function Hot.mousemoved(...) Hot.root.mousemoved(...) end
-function Hot.wheelmoved(...) Hot.root.wheelmoved(...) end
-
 
 function Hot.traceback(err)
     Hot.trace = err
@@ -250,12 +271,11 @@ function Hot.warning()
             if k=='syntax' then
                 clr = SYNTAXCLR
                 lab = 'Syntax'
-                love.graphics.setColor(clr)
             else
                 clr = RUNCLR
                 lab = 'Runtime'
-                love.graphics.setColor(clr)
             end
+            love.graphics.setColor(clr)
             love.graphics.circle('fill', 8,8,4)
             label(lab..' Error: ',16,0,clr)
             label(Hot.trace,16,16,TRACECLR,0,0,12)

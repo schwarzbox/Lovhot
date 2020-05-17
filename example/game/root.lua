@@ -21,7 +21,7 @@ function Root.load()
     Root.addModel(Game)
     Root.addModel(End)
 
-    -- init table for save hot data with same uniq key
+    -- init table for save hot data
     Root.hd = hot.data(Root.tag)
     local active = Root.hd.active or Start.tag
     Root.activate(active)
@@ -57,9 +57,7 @@ function Root.draw()
     Root.active.draw()
 end
 
-function Root.keypressed(key,unicode,isrepeat)
-
-end
+function Root.keypressed(key,unicode,isrepeat) end
 
 function Root.keyreleased(key,unicode)
     if Root.active == Start then
@@ -82,5 +80,13 @@ function Root.mousepressed(x,y,button,istouch) end
 function Root.mousereleased(x,y,button,istouch) end
 function Root.mousemoved(x,y,dx,dy,istouch) end
 function Root.wheelmoved(x, y) end
+function Root.focus(f) end
+function Root.mousefocus(f) end
+function Root.resize(w, h) end
+function Root.textedited(t, start, length) end
+function Root.textinput(t) end
+function Root.filedropped(file) end
+function Root.visible(v) end
+function Root.quit() end
 
 return Root
