@@ -1,6 +1,6 @@
 #!/usr/bin/env love
 -- LOVHOT
--- 0.55
+-- 1.0
 -- Hot Swap System (love2d)
 -- lovhot.lua
 
@@ -25,18 +25,12 @@
 -- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 -- DEALINGS IN THE SOFTWARE.
 
--- 0.6
--- look for new file try with require lovhot
-
--- title bug
+-- 1.1
 -- initial errors
+-- replace shell coommands with love commands
+-- title bug
 
--- 0.7
--- fennel?
--- require get all locals
--- reg pack (__index)
-
-if arg[1] then print('0.55 LOVHOT Hot Swap System (love2d)', arg[1]) end
+if arg[1] then print('1.0 LOVHOT Hot Swap System (love2d)', arg[1]) end
 
 -- lua<5.3
 local unpack = table.unpack or unpack
@@ -61,17 +55,22 @@ local function allfiles(dir,except,arr)
     dir = dir or ''
     except = except or {}
     arr = arr or {}
-    local files = love.filesystem.getDirectoryItems(dir)
-    for i=1, #files do
-        local path = files[i]
+    -- local files = love.filesystem.getDirectoryItems(dir)
+    local out=io.popen('ls '.. dir,'r')
+    local files=out:read('*a'):gmatch('[%w._]+')
+    out:close()
+    -- for i=1, #files do
+    for path in files do
+        -- local path = files[i]
         if #dir>0 then
-            path = dir..'/'..files[i]
+            path = dir..'/'..path
         end
-        if love.filesystem.getInfo(path).type=='file' and not except[path] then
-            if ext(path)=='lua' and name(path)~='lovhot.lua' then
+        local info = love.filesystem.getInfo(path)
+        if info and info.type=='file' and not except[path] then
+            if ext(path)=='lua'  and name(path)~='lovhot.lua' then
                 arr[#arr+1] = path
             end
-        elseif love.filesystem.getInfo(path).type=='directory' then
+        elseif info and info.type=='directory' then
             allfiles(path,except,arr)
         end
     end
@@ -90,12 +89,12 @@ local function label(text, x, y, clr, px, py, size)
     love.graphics.setColor({1,1,1,1})
 end
 
--- if use weak values system sometime delete objects
+-- if use weak values system sometimes delete objects
+local meta = {}
 -- local meta = {__mode = 'k'}
 -- local meta = {__mode = 'v'}
 
--- datatab table(singleton) used for hot data
-local meta = {}
+-- datatab table(singleton) used for hot reload data
 local Hot = {swap=false, swaptime=0,
             root={}, rootfile='', exclude={}, command='',
             catch = {syntax=false}, trace="",
@@ -120,6 +119,7 @@ function Hot.load(rootfile, ...)
         local file = argf[i]
         Hot.exclude[file] = file
     end
+
     Hot.command = Hot.search()
 
     Hot.calls = {}
@@ -128,9 +128,7 @@ function Hot.load(rootfile, ...)
 end
 
 function Hot.data(key)
-        print(Hot.datatab[key])
     Hot.datatab[key] = Hot.datatab[key] or {}
-
     return  Hot.datatab[key]
 end
 
@@ -258,6 +256,7 @@ function Hot.hotswap()
                 end)
 
     if Hot.swap then
+        Hot.command = Hot.search()
         Hot.root = Hot.restore(Hot.rootfile, Hot.root)
         Hot.root.load()
     end

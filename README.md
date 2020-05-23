@@ -2,7 +2,13 @@
 
 Hot Swap System for Love2d.
 
-v0.55
+v1.0
+
+System allows hot reload.
+
+User can save iternal state of the game object in special table which returned by hot.data(object.tag) function.
+
+System tested in OS X and use shell commands "ls" and "stat".
 
 # Example
 
@@ -17,12 +23,16 @@ local Hot = require('lovhot')
 
 function love.load()
     love.window.setPosition(0,0)
-    -- create root.lua as entry point for hot reload and for all game logic
-    -- after root.lua provide excluded files except main.lua and conf.lua (opt)
+    -- after root.lua provide excluded files except main.lua and conf.lua
     Hot.load('game/root.lua')
 end
 
 ```
+
+Create root.lua as entry point for hot reload and for all game logic.
+
+In this example root.lua used as scene manager.
+
 root.lua
 
 ``` lua
@@ -115,10 +125,15 @@ end
 return Ball
 ```
 
+See complex example in example dir
+
 # Warning
 
-See complex example in example dir
 For perfect result use same structure for your project as provided in example
 
 ![Screenshot](screenshot/screenshot1.png)
+
+
+
+
 

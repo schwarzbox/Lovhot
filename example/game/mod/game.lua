@@ -8,13 +8,13 @@ local utf8 = require('utf8')
 
 local hot = require('lib/lovhot')
 
--- local Cell = dofile('game/obj/cell.lua')
+local Cell = dofile('game/obj/cell.lua')
 local Tnt = dofile('game/obj/tnt.lua')
 local Game = {tag='Game', objects={}, nobj=0, stop=false}
 function Game.new()
-    -- for _=1,220 do
-        -- Game.addObject(Cell:new())
-    -- end
+    for _=1,20 do
+        Game.addObject(Cell:new())
+    end
     Game.tnt = Tnt:new()
     Game.addObject(Game.tnt)
 end
