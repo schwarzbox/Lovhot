@@ -1,18 +1,18 @@
-# LOVHOT-LÖVE
-
-Hot Swap System for Love2d.
+# Lovhot
 
 v1.0
 
+Hot Swap System for Love2d.
+
 System allows hot reload.
 
-User can save iternal state of the game object in special table which returned by hot.data(object.tag) function.
+User can save game object's state in the special table which returned by hot.data(object.tag) function.
 
 System tested in OS X and use shell commands "ls" and "stat".
 
 # Example
 
-Copy lovhot.lua to the project folder
+Copy lovhot.lua to the project dir.
 
 main.lua
 
@@ -125,11 +125,9 @@ end
 return Ball
 ```
 
-See complex example in example dir
-
 # Warning
 
-For perfect result use same structure for your project as provided in example
+For best results use same structure as provided in the example dir.
 
 ![Screenshot](screenshot/screenshot1.png)
 

@@ -26,8 +26,8 @@
 -- DEALINGS IN THE SOFTWARE.
 
 -- 1.1
--- initial errors
 -- replace shell coommands with love commands
+-- update readme
 -- title bug
 
 if arg[1] then print('1.0 LOVHOT Hot Swap System (love2d)', arg[1]) end

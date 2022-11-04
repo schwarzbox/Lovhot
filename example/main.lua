@@ -36,8 +36,8 @@ local Hot = require('lib/lovhot')
 
 function love.load()
     love.window.setPosition(0,0)
-    -- create root.lua as entry point for hot reload and all code
-    -- after root.lua provide excluded files except main.lua and conf.lua
+    -- create game/root.lua as entry point for hot reload
+    -- after game/root.lua provide excluded files except main.lua and conf.lua
     Hot.load('game/root.lua')
 end
 
