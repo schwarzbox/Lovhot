@@ -1,10 +1,12 @@
+-- conf HOT
+
 function love.conf(t)
     -- The name of the save directory (string)
-    t.identity = 'Hot'
-     -- Search files in source directory before save directory (boolean)
+    t.identity = 'HotData'
+    -- Search files in source directory before save directory (boolean)
     t.appendidentity = false
     -- The LÖVE ver this game was made for (string)
-    t.ver = '11.2'
+    t.ver = '11.5'
     -- Attach a console (boolean, Windows only)
     t.console = false
     -- Enable the accelerometer on iOS and Android by exposing it as a Joystick (boolean)
@@ -13,6 +15,8 @@ function love.conf(t)
     t.externalstorage = true
     -- Enable gamma-correct rendering, when supported by the system (boolean)
     t.gammacorrect = false
+    -- Request and use microphone capabilities in Android (boolean)
+    t.audio.mic = false
     -- Keep background music playing when opening LOVE (boolean, iOS and Android only)
     t.audio.mixwithsystem = true
     -- The window title (string)
@@ -39,6 +43,10 @@ function love.conf(t)
     t.window.vsync = 1
     -- The number of samples to use with multi-sampled antialiasing (number)
     t.window.msaa = 0
+    -- The number of bits per sample in the depth buffer
+    t.window.depth = nil
+    -- The number of bits per sample in the stencil buffer
+    t.window.stencil = nil
     -- Index of the monitor to show the window in (number)
     t.window.display = 1
     -- Enable high-dpi mode for the window on a Retina display (boolean)
@@ -73,10 +81,10 @@ function love.conf(t)
     t.modules.sound = true
     -- Enable the system module (boolean)
     t.modules.system = true
-    -- Enable the timer module (boolean), Disabling it will result 0 delta time in love.update
-    t.modules.timer = true
     -- Enable the thread module (boolean)
     t.modules.thread = true
+    -- Enable the timer module (boolean), Disabling it will result 0 delta time in love.update
+    t.modules.timer = true
     -- Enable the touch module (boolean)
     t.modules.touch = true
     -- Enable the video module (boolean)

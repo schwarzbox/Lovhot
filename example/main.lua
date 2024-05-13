@@ -2,11 +2,10 @@
 -- HOT
 -- 1.0
 -- Game (love2d)
-
 -- main.lua
 
 -- MIT License
--- Copyright (c) 2020 Alexander Veledzimovich veledz@gmail.com
+-- Copyright (c) 2020 Aliaksandr Veledzimovich veledz@gmail.com
 
 -- Permission is hereby granted, free of charge, to any person obtaining a
 -- copy of this software and associated documentation files (the "Software"),
@@ -32,19 +31,18 @@ local utf8 = require('utf8')
 
 io.stdout:setvbuf('no')
 
-local Hot = require('lib/lovhot')
+local hot = require('lib/lovhot')
 
 function love.load()
-    love.window.setPosition(0,0)
-    -- create game/root.lua as entry point for hot reload
-    -- after game/root.lua provide excluded files except main.lua and conf.lua
-    Hot.load('game/root.lua')
+    love.window.setPosition(0, 0)
+    -- By default hot swap disabled for main.lua and conf.lua
+    -- After root.lua you can provide files to disable hot swap
+    hot.load('game/root.lua')
 end
 
-function love.update(dt)
-    -- fix temporary bug with cloned title in root.lua
-    love.window.setTitle('')
 
-end
-function love.draw()
-end
+function love.update(dt) end
+
+
+function love.draw() end
+

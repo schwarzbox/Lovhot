@@ -1,11 +1,11 @@
 #!/usr/bin/env love
 -- LOVHOT
--- 1.0
+-- 1.1
 -- Hot Swap System (love2d)
 -- lovhot.lua
 
 -- MIT License
--- Copyright (c) 2020 Alexander Veledzimovich veledz@gmail.com
+-- Copyright (c) 2024 Aliaksandr Veledzimovich veledz@gmail.com
 
 -- Permission is hereby granted, free of charge, to any person obtaining a
 -- copy of this software and associated documentation files (the "Software"),
@@ -25,10 +25,9 @@
 -- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 -- DEALINGS IN THE SOFTWARE.
 
--- 1.1
--- replace shell coommands with love commands
--- update readme
--- title bug
+-- 1.2
+-- use love filesystem
+
 
 if arg[1] then print('1.0 LOVHOT Hot Swap System (love2d)', arg[1]) end
 
@@ -36,11 +35,33 @@ if arg[1] then print('1.0 LOVHOT Hot Swap System (love2d)', arg[1]) end
 local unpack = table.unpack or unpack
 local utf8 = require('utf8')
 
-local WHITE = {1,1,1,1}
-local SYNTAXCLR = {0.1,1,0.1,1}
-local RUNCLR = {1,0.1,0.1,1}
-local TRACECLR = {0.9,1,0.1,1}
-local FN = function(...) end
+-- constants
+local WHITE = {1, 1, 1, 1}
+local SYNTAXCLR = {0.1, 1, 0.1, 1}
+local RUNTIMECLR = {1, 0.1, 0.1, 1}
+local TRACECLR = {0.9, 1, 0.1, 1}
+local FUNC = function(...) end
+local EVENTS = {
+    'update',
+    'draw',
+    'keypressed',
+    'keyreleased',
+    'mousepressed',
+    'mousereleased',
+    'mousemoved',
+    'wheelmoved',
+    'focus',
+    'mousefocus',
+    'resize',
+    'textedited',
+    'textinput',
+    'filedropped',
+    'visible',
+    'quit'
+}
+
+-- settings
+love.filesystem.setSymlinksEnabled(true)
 
 -- private functions
 local function ext(path)
@@ -51,30 +72,30 @@ local function name(path)
     return path:match('[^/]+$')
 end
 
-local function allfiles(dir,except,arr)
+local function allfiles(dir, except, array)
     dir = dir or ''
     except = except or {}
-    arr = arr or {}
-    -- local files = love.filesystem.getDirectoryItems(dir)
-    local out=io.popen('ls '.. dir,'r')
-    local files=out:read('*a'):gmatch('[%w._]+')
+    array = array or {}
+
+    local out = io.popen('ls '..dir, 'r')
+    local files = out:read('*a'):gmatch('[%w._]+')
     out:close()
-    -- for i=1, #files do
+
     for path in files do
-        -- local path = files[i]
-        if #dir>0 then
+        if #dir > 0 then
             path = dir..'/'..path
         end
+
         local info = love.filesystem.getInfo(path)
-        if info and info.type=='file' and not except[path] then
-            if ext(path)=='lua'  and name(path)~='lovhot.lua' then
-                arr[#arr+1] = path
+        if info and info.type == 'file' and not except[path] then
+            if ext(path) == 'lua' and name(path) ~= 'lovhot.lua' then
+                array[#array + 1] = path
             end
-        elseif info and info.type=='directory' then
-            allfiles(path,except,arr)
+        elseif info and info.type == 'directory' then
+            allfiles(path, except, array)
         end
     end
-    return arr
+    return array
 end
 
 local function label(text, x, y, clr, px, py, size)
@@ -85,97 +106,112 @@ local function label(text, x, y, clr, px, py, size)
     local hei = love.graphics.newFont(size):getHeight()
     love.graphics.setFont(love.graphics.newFont(size))
     love.graphics.setColor(clr)
-    love.graphics.print(text, x-wid*px,y-hei*py)
-    love.graphics.setColor({1,1,1,1})
+    love.graphics.print(text, x - wid * px, y - hei * py)
+    love.graphics.setColor({1, 1, 1, 1})
 end
 
+-- hot
 -- if use weak values system sometimes delete objects
 local meta = {}
--- local meta = {__mode = 'k'}
--- local meta = {__mode = 'v'}
-
--- datatab table(singleton) used for hot reload data
-local Hot = {swap=false, swaptime=0,
-            root={}, rootfile='', exclude={}, command='',
-            catch = {syntax=false}, trace="",
-            datatab = setmetatable({}, meta)}
-
-local events = {
-    'update', 'draw',
-    'keypressed', 'keyreleased', 'mousepressed', 'mousereleased',
-    'mousemoved', 'wheelmoved', 'focus', 'mousefocus',
-    'resize', 'textedited', 'textinput', 'filedropped', 'visible', 'quit'
+-- local meta = {__mode='k'}
+-- local meta = {__mode='v'}
+local Hot = {
+    swap=false,
+    swaptime=0,
+    root={},
+    rootfile='',
+    _exclude={},
+    _statcmd='',
+    _calls={},
+    _catch={syntax=false},
+    _runtimetrace={},
+    _syntaxtrace='',
+    -- _state is a singleton used for save state
+    _state=setmetatable({}, meta)
 }
-
 function Hot.load(rootfile, ...)
     Hot.rootfile = rootfile
     Hot.root = dofile(Hot.rootfile)
     Hot.root.load()
 
     local argf = {...}
-    Hot.exclude = {['main.lua']='main.lua', ['conf.lua']='conf.lua'}
+    Hot._exclude = {
+        ['main.lua']='main.lua',
+        ['conf.lua']='conf.lua'
+    }
 
-    for i=1,#argf do
+    for i=1, #argf do
         local file = argf[i]
-        Hot.exclude[file] = file
+        Hot._exclude[file] = file
     end
 
-    Hot.command = Hot.search()
+    Hot._statcmd = Hot.statcmd()
 
-    Hot.calls = {}
+    Hot._calls = {}
     Hot.callbacks()
     Hot.savecalls()
 end
 
-function Hot.data(key)
-    Hot.datatab[key] = Hot.datatab[key] or {}
-    return  Hot.datatab[key]
+
+function Hot.state(tag, tab, ...)
+    local argf = {...}
+    local saved = Hot._state[tag]
+    if saved then
+        for i=1, #argf do
+            local key = argf[i]
+            tab[key] = saved[key]
+        end
+    end
+    Hot._state[tag] = tab
 end
 
-function Hot.search()
-    local filetree = allfiles('', Hot.exclude)
-    local command = 'stat -f "%m%n" '
-    for _,v in pairs(filetree) do
-        command=command..' '..v
+function Hot.statcmd()
+    local filetree = allfiles('', Hot._exclude)
+    local cmd = 'stat -f "%m%n" '
+
+    for _, path in pairs(filetree) do
+        cmd = cmd..' '..path
     end
-    command=command..' 2>&1'
-    return command
+        cmd = cmd..' 2>&1'
+
+    return cmd
 end
 
 function Hot.callbacks()
     local default = {}
-    for _,event in pairs(events) do
+    for _, event in pairs(EVENTS) do
 
-        if event~='update' and event~='draw' then
+        if event ~= 'update' and event ~= 'draw' then
             Hot[event] = function(...)
-                Hot.root[event]=Hot.root[event] or FN
+                Hot.root[event] = Hot.root[event] or FUNC
                 Hot.root[event](...)
             end
         end
 
-        default[event] = love[event] or FN
+        default[event] = love[event] or FUNC
         love[event] = function(...)
             local output = {default[event](...)}
 
-            if #output>0 then
-                local xcall, xout = xpcall(Hot[event],
-                                           Hot.traceback, unpack(output))
+            if #output > 0 then
+                local xcall, xout = xpcall(
+                    Hot[event], Hot.runtimetrace, unpack(output)
+                )
                 if not xcall then
-                    if not Hot.catch[event] then
+                    if not Hot._catch[event] then
                         io.write(xout..'\n')
                     end
-                    Hot.catch[event] = true
+                    Hot._catch[event] = true
                     Hot.loadcalls(event)
                 end
-                return unpack(output)
             else
-                local xcall, xout = xpcall(Hot[event],
-                                           Hot.traceback,...)
+                local xcall, xout = xpcall(
+                    Hot[event], Hot.runtimetrace, ...
+                )
                 if not xcall then
-                    if not Hot.catch[event] then
+                    if not Hot._catch[event] then
                         io.write(xout..'\n')
                     end
-                    Hot.catch[event] = true
+                    Hot._catch[event] = true
                     Hot.loadcalls(event)
                 end
             end
@@ -193,25 +229,29 @@ function Hot.draw()
     Hot.root.draw()
 end
 
-function Hot.traceback(err)
-    Hot.trace = err
+function Hot.runtimetrace(err)
+    Hot._runtimetrace[#Hot._runtimetrace + 1] = err
     return debug.traceback(err)
 end
 
+function Hot.syntaxtrace(err)
+    Hot._syntaxtrace = err
+    return debug.traceback(err)
+end
 
 function Hot.savecalls()
-    for _, event in pairs(events) do
-        Hot.calls[event]=love[event]
-        Hot.catch[event]=false
+    for _, event in pairs(EVENTS) do
+        Hot._calls[event] = love[event]
+        Hot._catch[event] = false
     end
 end
 
 function Hot.loadcalls(ev)
     if ev then
-        love[ev]=Hot.calls[ev]
+        love[ev] = Hot._calls[ev]
     else
-        for _, event in pairs(events) do
-            love[event]=Hot.calls[event]
+        for _, event in pairs(EVENTS) do
+            love[event] = Hot._calls[event]
         end
     end
 end
@@ -221,13 +261,13 @@ function Hot.restore(file, oldroot)
 
     Hot.savecalls()
 
-    local xcall, xout = xpcall(dofile, Hot.traceback, file)
+    local xcall, xout = xpcall(dofile, Hot.syntaxtrace, file)
 
-    if (xcall) then
-        Hot.catch.syntax = false
+    if xcall then
+        Hot._catch.syntax = false
         return xout
     else
-        Hot.catch.syntax = true
+        Hot._catch.syntax = true
         io.write(xout..'\n')
         Hot.loadcalls()
         return oldroot
@@ -241,46 +281,59 @@ function Hot.hotswap()
 
     Hot.swap = false
 
-    local out = io.popen(Hot.command,'r')
+    local out = io.popen(Hot._statcmd, 'r')
     local modtime = out:read('*a')
     out:close()
 
     modtime:gsub('(%w+)',
-                 function(w)
-                    local ctime = tonumber(w)
-                    if now == ctime and not Hot.swap then
-                        Hot.swaptime = now
-                        Hot.swap = true
-                    end
-                    return
-                end)
+        function(w)
+            local ctime = tonumber(w)
+            if now == ctime and not Hot.swap then
+                Hot.swaptime = now
+                Hot.swap = true
+            end
+            return
+        end
+    )
 
     if Hot.swap then
-        Hot.command = Hot.search()
+        Hot._statcmd = Hot.statcmd()
         Hot.root = Hot.restore(Hot.rootfile, Hot.root)
         Hot.root.load()
     end
 end
 
 function Hot.warning()
-    for k,err in pairs(Hot.catch) do
+    local row = 0
+    local hei = 16
+
+    for key, err in pairs(Hot._catch) do
         local clr
         local lab
+        local message
         if err then
-            if k=='syntax' then
+            if key == 'syntax' then
                 clr = SYNTAXCLR
                 lab = 'Syntax'
+                message = Hot._syntaxtrace
             else
-                clr = RUNCLR
+                clr = RUNTIMECLR
                 lab = 'Runtime'
+                message = table.remove(Hot._runtimetrace, 1)
             end
-            love.graphics.setColor(clr)
-            love.graphics.circle('fill', 8,8,4)
-            label(lab..' Error: ',16,0,clr)
-            label(Hot.trace,16,16,TRACECLR,0,0,12)
+
+             if message then
+                love.graphics.setColor(clr)
+                love.graphics.circle('fill', 8, row * hei + 8, 4)
+                label(lab..' Error: ', 16, row * hei, clr)
+                row = row + 1
+                label(message, 16, row * hei, TRACECLR, 0, 0, 12)
+                row = row + 1
+            end
         end
     end
     love.graphics.setColor(WHITE)
 end
+
 
 return Hot
