@@ -26,7 +26,7 @@
 -- DEALINGS IN THE SOFTWARE.
 
 -- 1.2
--- use love filesystem
+-- use love.errorhandler
 
 
 if arg[1] then print('1.0 LOVHOT Hot Swap System (love2d)', arg[1]) end
@@ -34,6 +34,17 @@ if arg[1] then print('1.0 LOVHOT Hot Swap System (love2d)', arg[1]) end
 -- lua<5.3
 local unpack = table.unpack or unpack
 local utf8 = require('utf8')
+
+-- mode
+local release = false
+if arg[1]:find('.love') then release = true end
+local system = love.system.getOS()
+if system ~= 'OS X' and release then
+    error(
+        'Hot Swap for the *.love-file not available for '.. system
+    )
+    return
+end
 
 -- constants
 local WHITE = {1, 1, 1, 1}
@@ -77,11 +88,18 @@ local function allfiles(dir, except, array)
     except = except or {}
     array = array or {}
 
-    local out = io.popen('ls '..dir, 'r')
-    local files = out:read('*a'):gmatch('[%w._]+')
-    out:close()
+    local files = {}
+    if release then
+        local out = io.popen('ls '..dir, 'r')
+        for file in out:read('*a'):gmatch('[%w._]+') do
+            files[file] = file
+        end
+        out:close()
+    else
+        files = love.filesystem.getDirectoryItems(dir)
+    end
 
-    for path in files do
+    for _, path in pairs(files) do
         if #dir > 0 then
             path = dir..'/'..path
         end
@@ -126,7 +144,7 @@ local Hot = {
     _catch={syntax=false},
     _runtimetrace={},
     _syntaxtrace='',
-    -- _state is a singleton used for save state
+    -- _state is a singleton to save state
     _state=setmetatable({}, meta)
 }
 function Hot.load(rootfile, ...)
@@ -145,7 +163,9 @@ function Hot.load(rootfile, ...)
         Hot._exclude[file] = file
     end
 
-    Hot._statcmd = Hot.statcmd()
+    if release then
+        Hot._statcmd = Hot.statcmd()
+    end
 
     Hot._calls = {}
     Hot.callbacks()
@@ -173,8 +193,17 @@ function Hot.statcmd()
         cmd = cmd..' '..path
     end
         cmd = cmd..' 2>&1'
-
     return cmd
+end
+
+function Hot.modtime()
+    local filetree = allfiles('', Hot._exclude)
+    local modtime = ''
+    for _, path in pairs(filetree) do
+        local info = love.filesystem.getInfo(path)
+        modtime = modtime..'\n'..info.modtime
+    end
+    return modtime
 end
 
 function Hot.callbacks()
@@ -281,9 +310,14 @@ function Hot.hotswap()
 
     Hot.swap = false
 
-    local out = io.popen(Hot._statcmd, 'r')
-    local modtime = out:read('*a')
-    out:close()
+    local modtime
+    if release then
+        local out = io.popen(Hot._statcmd, 'r')
+        modtime = out:read('*a')
+        out:close()
+    else
+        modtime = Hot.modtime()
+    end
 
     modtime:gsub('(%w+)',
         function(w)
@@ -297,7 +331,9 @@ function Hot.hotswap()
     )
 
     if Hot.swap then
-        Hot._statcmd = Hot.statcmd()
+        if release then
+            Hot._statcmd = Hot.statcmd()
+        end
         Hot.root = Hot.restore(Hot.rootfile, Hot.root)
         Hot.root.load()
     end

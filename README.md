@@ -8,7 +8,11 @@ System allows hot reload.
 
 User have to save objects state in the `_state` table with function `Hot.state`.
 
-System tested in MacOS and use shell commands "ls" and "stat".
+- Develop mode
+Hot Swap System use love.filesystem to create file tree and to determine modtime.
+
+- Release mode (OS X only)
+Hot Swap System use shell commands "ls" to create file and "stat" to determine modtime.
 
 Made with LÖVE
 
